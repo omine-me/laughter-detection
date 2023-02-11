@@ -4,7 +4,7 @@
 import os, sys, pickle, time, librosa, argparse, torch, numpy as np, pandas as pd, scipy
 from tqdm import tqdm
 import tgt
-sys.path.append('./utils/')
+sys.path.append('./laughter_detection/utils/')
 from . import laugh_segmenter
 from . import models, configs
 import dataset_utils, audio_utils, data_loaders, torch_utils
@@ -22,17 +22,16 @@ def segment_laughter(input_audio_file="", output_dir="", threshold="0.5", min_le
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--model_path', type=str, default='checkpoints/in_use/resnet_with_augmentation')
+    parser.add_argument('--model_path', type=str, default='./laughter_detection/checkpoints/in_use/resnet_with_augmentation')
     parser.add_argument('--config', type=str, default='resnet_with_augmentation')
     parser.add_argument('--threshold', type=str, default=threshold)
     parser.add_argument('--min_length', type=str, default=min_length)
-    parser.add_argument('--input_audio_file', required=True, type=str, default=input_audio_file)
+    parser.add_argument('--input_audio_file', type=str, default=input_audio_file)
     parser.add_argument('--output_dir', type=str, default=output_dir)
     parser.add_argument('--save_to_audio_files', type=str, default=save_to_audio_files)
     parser.add_argument('--save_to_textgrid', type=str, default='True')
 
     args = parser.parse_args()
-
 
     model_path = args.model_path
     config = configs.CONFIG_MAP[args.config]
@@ -117,9 +116,9 @@ def segment_laughter(input_audio_file="", output_dir="", threshold="0.5", min_le
             tgt.Interval(l['start'], l['end'], 'laugh') for l in laughs])
             tg.add_tier(laughs_tier)
             # fname = os.path.splitext(os.path.basename(audio_path))[0]
-            tgt.write_to_file(tg, os.path.join(output_dir, 'laughter.TextGrid'))
+            tgt.write_to_file(tg, os.path.join(output_dir+'_laughter.TextGrid'))
 
             print('Saved laughter segments in {}'.format(
-                os.path.join(output_dir, 'laughter.TextGrid')))
+                os.path.join(output_dir+'_laughter.TextGrid')))
 if __name__ == '__main__':
     segment_laughter()

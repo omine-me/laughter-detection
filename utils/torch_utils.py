@@ -2,7 +2,7 @@ import numpy as np, os, sys, shutil, time, math
 import torch
 from torch import nn
 from torch.autograd import Variable
-from tensorboardX import SummaryWriter
+# from tensorboardX import SummaryWriter
 import text_utils
 
 # Import different progress bar depending on environment
