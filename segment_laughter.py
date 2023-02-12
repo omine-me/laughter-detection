@@ -2,6 +2,7 @@
 # python segment_laughter.py --input_audio_file=tst_wave.wav --output_dir=./tst_wave --save_to_textgrid=False --save_to_audio_files=True --min_length=0.2 --threshold=0.5
 
 import os, sys, pickle, time, librosa, argparse, torch, numpy as np, pandas as pd, scipy
+import json
 from tqdm import tqdm
 import tgt
 sys.path.append('./laughter_detection/utils/')
@@ -16,7 +17,7 @@ model = None
 feature_fn = None
 device = None
 
-def segment_laughter(input_audio_file="", output_dir="", threshold="0.5", min_length="0.2", save_to_audio_files="True"):
+def segment_laughter(input_audio_file="", output_dir="", threshold="0.5", min_length="0.2", save_to_audio_files="True", offset=0.0, duration=None, caution_log=None):
     global model, feature_fn, device
     sample_rate = 8000
 
@@ -61,7 +62,7 @@ def segment_laughter(input_audio_file="", output_dir="", threshold="0.5", min_le
     ##### Load the audio file and features
         
     inference_dataset = data_loaders.SwitchBoardLaughterInferenceDataset(
-        audio_path=audio_path, feature_fn=feature_fn, sr=sample_rate)
+        audio_path=audio_path, feature_fn=feature_fn, sr=sample_rate, offset=offset, duration=duration)
 
     collate_fn=partial(audio_utils.pad_sequences_with_labels,
                             expand_channel_dim=config['expand_channel_dim'])
@@ -76,6 +77,7 @@ def segment_laughter(input_audio_file="", output_dir="", threshold="0.5", min_le
     for model_inputs, _ in tqdm(inference_generator):
         x = torch.from_numpy(model_inputs).float().to(device)
         preds = model(x).cpu().detach().numpy().squeeze()
+        print(x.shape, preds.shape)
         if len(preds.shape)==0:
             preds = [float(preds)]
         else:
@@ -84,8 +86,17 @@ def segment_laughter(input_audio_file="", output_dir="", threshold="0.5", min_le
     probs = np.array(probs)
 
     file_length = audio_utils.get_audio_length(audio_path)
-
+    print(probs.shape)
+    print("1",file_length)
+    if file_length/60. - offset < duration:
+        file_length = file_length/60. - offset
+        # file_length = file_length - offset*60.
+    else:
+        file_length = duration
+        # file_length = duration*60.
+    print("2",file_length)
     fps = len(probs)/float(file_length)
+    print("fps",fps)
 
     probs = laugh_segmenter.lowpass(probs)
     instances = laugh_segmenter.get_laughter_instances(probs, threshold=threshold, min_length=float(args.min_length), fps=fps)
@@ -93,11 +104,11 @@ def segment_laughter(input_audio_file="", output_dir="", threshold="0.5", min_le
     print(); print("found %d laughs." % (len (instances)))
 
     if len(instances) > 0:
-        full_res_y, full_res_sr = librosa.load(audio_path,sr=44100)
-        wav_paths = []
-        maxv = np.iinfo(np.int16).max
-        
         if save_to_audio_files:
+            full_res_y, full_res_sr = librosa.load(audio_path,sr=44100)
+            wav_paths = []
+            maxv = np.iinfo(np.int16).max
+
             if output_dir is None:
                 raise Exception("Need to specify an output directory to save audio files")
             else:
@@ -110,15 +121,43 @@ def segment_laughter(input_audio_file="", output_dir="", threshold="0.5", min_le
                 print(laugh_segmenter.format_outputs(instances, wav_paths))
         
         if save_to_textgrid:
-            laughs = [{'start': i[0], 'end': i[1]} for i in instances]
-            tg = tgt.TextGrid()
-            laughs_tier = tgt.IntervalTier(name='laughter', objects=[
-            tgt.Interval(l['start'], l['end'], 'laugh') for l in laughs])
-            tg.add_tier(laughs_tier)
-            # fname = os.path.splitext(os.path.basename(audio_path))[0]
-            tgt.write_to_file(tg, os.path.join(output_dir+'_laughter.TextGrid'))
+            # laughs = [{'start': i[0], 'end': i[1]} for i in instances]
+            # tg = tgt.TextGrid()
+            # laughs_tier = tgt.IntervalTier(name='laughter', objects=[
+            # tgt.Interval(l['start'], l['end'], 'laugh') for l in laughs])
+            # tg.add_tier(laughs_tier)
+            # # fname = os.path.splitext(os.path.basename(audio_path))[0]
+            # tgt.write_to_file(tg, os.path.join(output_dir+'_laughter.TextGrid'))
 
-            print('Saved laughter segments in {}'.format(
-                os.path.join(output_dir+'_laughter.TextGrid')))
+            # print('Saved laughter segments in {}'.format(
+            #     os.path.join(output_dir+'_laughter.TextGrid')))
+            out_path = output_dir+'_laughter.json'
+
+            if os.path.exists(out_path):
+                with open(out_path, "r") as f:
+                    laughter_attributes = json.load(f)
+                start = len(laughter_attributes)
+                assert instances[0][0] >= laughter_attributes[str(len(laughter_attributes)-1)]["end_sec"], "Previous prediction seems to exist."
+            else:
+                laughter_attributes = {}
+                start = 0
+            
+            for idx, inst in enumerate(instances, start):
+                laughter_attributes[idx] = {"start_sec": offset*60+inst[0],
+                                            "end_sec": offset*60+inst[1],
+                                            "prob": inst[2]}
+            if not os.path.exists(os.path.abspath(os.path.join(output_dir, os.pardir))):
+                os.makedirs(os.path.abspath(os.path.join(output_dir, os.pardir)))
+            with open(out_path, mode='w', encoding="utf-8") as f:
+                json.dump(laughter_attributes, f)
+            
+            # log caution when laughter location is too near start or near end
+            # because it may be a separated laughter.
+            if caution_log:
+                if instances[0][0] < min_length or\
+                    instances[-1][1] > file_length-min_length:
+                    with open(caution_log, mode='a') as f:
+                        f.write(input_audio_file)
+
 if __name__ == '__main__':
     segment_laughter()

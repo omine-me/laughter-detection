@@ -180,14 +180,14 @@ class SwitchBoardLaughterDataset(torch.utils.data.Dataset):
         return (X,y)
 
 class SwitchBoardLaughterInferenceDataset(torch.utils.data.Dataset):
-    def __init__(self, audio_path, feature_fn, sr=8000, n_frames=44):
+    def __init__(self, audio_path, feature_fn, sr=8000, n_frames=44, offset=0.0, duration=None):
         self.audio_path = audio_path
         self.n_frames = n_frames
         self.feature_fn = feature_fn
         self.sr = sr
         self.n_frames = n_frames
 
-        self.y, _ = librosa.load(audio_path, sr=sr)
+        self.y, _ = librosa.load(audio_path, sr=sr, offset=offset, duration=duration)
         self.features = feature_fn(y=self.y,sr=self.sr)
 
     def __len__(self):
