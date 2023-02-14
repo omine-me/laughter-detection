@@ -89,11 +89,11 @@ def segment_laughter(input_audio_file="", output_dir="", threshold="0.5", min_le
     print(probs.shape)
     print("1",file_length)
     if file_length/60. - offset < duration:
-        file_length = file_length/60. - offset
-        # file_length = file_length - offset*60.
+        # file_length = file_length/60. - offset
+        file_length = file_length - offset*60.
     else:
-        file_length = duration
-        # file_length = duration*60.
+        # file_length = duration
+        file_length = duration*60.
     print("2",file_length)
     fps = len(probs)/float(file_length)
     print("fps",fps)
@@ -121,16 +121,6 @@ def segment_laughter(input_audio_file="", output_dir="", threshold="0.5", min_le
                 print(laugh_segmenter.format_outputs(instances, wav_paths))
         
         if save_to_textgrid:
-            # laughs = [{'start': i[0], 'end': i[1]} for i in instances]
-            # tg = tgt.TextGrid()
-            # laughs_tier = tgt.IntervalTier(name='laughter', objects=[
-            # tgt.Interval(l['start'], l['end'], 'laugh') for l in laughs])
-            # tg.add_tier(laughs_tier)
-            # # fname = os.path.splitext(os.path.basename(audio_path))[0]
-            # tgt.write_to_file(tg, os.path.join(output_dir+'_laughter.TextGrid'))
-
-            # print('Saved laughter segments in {}'.format(
-            #     os.path.join(output_dir+'_laughter.TextGrid')))
             out_path = output_dir+'_laughter.json'
 
             if os.path.exists(out_path):

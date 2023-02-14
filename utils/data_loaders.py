@@ -189,6 +189,7 @@ class SwitchBoardLaughterInferenceDataset(torch.utils.data.Dataset):
 
         self.y, _ = librosa.load(audio_path, sr=sr, offset=offset, duration=duration)
         self.features = feature_fn(y=self.y,sr=self.sr)
+        print("self.features", len(self.features), self.features)
 
     def __len__(self):
         return len(self.features)-self.n_frames

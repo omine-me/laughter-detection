@@ -344,7 +344,7 @@ def pad_sequences_with_labels(seq_label_tuples, sequence_pad_value=0,
         if one_hot_labels:
             labels = [text_utils.np_onehot(l, depth=len(output_vocab)) for l in labels]
 
-    if expand_channel_dim:
+    if expand_channel_dim: # this is true in eval
         sequences = np.expand_dims(sequences, 1)
         if auto_encoder_like:
             labels = np.expand_dims(labels, 1)
