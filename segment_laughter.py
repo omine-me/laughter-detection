@@ -77,7 +77,7 @@ def segment_laughter(input_audio_file="", output_dir="", threshold="0.5", min_le
     for model_inputs, _ in tqdm(inference_generator):
         x = torch.from_numpy(model_inputs).float().to(device)
         preds = model(x).cpu().detach().numpy().squeeze()
-        print(x.shape, preds.shape)
+        # print(x.shape, preds.shape)
         if len(preds.shape)==0:
             preds = [float(preds)]
         else:
@@ -85,16 +85,12 @@ def segment_laughter(input_audio_file="", output_dir="", threshold="0.5", min_le
         probs += preds
     probs = np.array(probs)
 
-    file_length = audio_utils.get_audio_length(audio_path)
-    print(probs.shape)
+    file_length = duration # return sec
     print("1",file_length)
-    if file_length/60. - offset < duration:
-        # file_length = file_length/60. - offset
-        file_length = file_length - offset*60.
-    else:
-        # file_length = duration
-        file_length = duration*60.
-    print("2",file_length)
+    # if file_length - offset < duration:
+    #     # file_length = file_length/60. - offset
+    #     file_length = file_length - offset
+    # print("2",file_length)
     fps = len(probs)/float(file_length)
     print("fps",fps)
 
@@ -127,14 +123,15 @@ def segment_laughter(input_audio_file="", output_dir="", threshold="0.5", min_le
                 with open(out_path, "r") as f:
                     laughter_attributes = json.load(f)
                 start = len(laughter_attributes)
-                assert instances[0][0] >= laughter_attributes[str(len(laughter_attributes)-1)]["end_sec"], "Previous prediction seems to exist."
+                print(instances[0][0], offset, str(len(laughter_attributes)-1), laughter_attributes[str(len(laughter_attributes)-1)]["end_sec"])
+                assert instances[0][0]+offset >= laughter_attributes[str(len(laughter_attributes)-1)]["end_sec"], "Previous prediction seems to exist."
             else:
                 laughter_attributes = {}
                 start = 0
             
             for idx, inst in enumerate(instances, start):
-                laughter_attributes[idx] = {"start_sec": offset*60+inst[0],
-                                            "end_sec": offset*60+inst[1],
+                laughter_attributes[idx] = {"start_sec": offset+inst[0],
+                                            "end_sec": offset+inst[1],
                                             "prob": inst[2]}
             if not os.path.exists(os.path.abspath(os.path.join(output_dir, os.pardir))):
                 os.makedirs(os.path.abspath(os.path.join(output_dir, os.pardir)))

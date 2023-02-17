@@ -57,12 +57,12 @@ def get_laughter_instances(probs, threshold = 0.5, min_length = 0.2, fps=100.):
         else:
             if len(current_list) > 0:
                 instances.append(current_list)
-                instances_for_probs.append(sum(current_list_for_probs) / len(current_list_for_probs) ) # append average
+                instances_for_probs.append(sum(current_list_for_probs) / len(current_list_for_probs)) # append average
                 current_list = []
                 current_list_for_probs = []
     if len(current_list) > 0:
         instances.append(current_list)
-        instances_for_probs.append(current_list_for_probs)
+        instances_for_probs.append(sum(current_list_for_probs) / len(current_list_for_probs))
     instances = [frame_span_to_time_span(collapse_to_start_and_end_frame(i),fps=fps) for i in instances]
     instances = [inst+(instances_for_probs[idx],) for idx, inst in enumerate(instances)]
     instances = [inst for inst in instances if inst[1]-inst[0] > min_length]
