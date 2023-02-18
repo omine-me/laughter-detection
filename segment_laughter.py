@@ -144,7 +144,7 @@ def segment_laughter(input_audio_file="", output_dir="", threshold="0.5", min_le
                 if instances[0][0] < min_length or\
                     instances[-1][1] > file_length-min_length:
                     with open(caution_log, mode='a') as f:
-                        f.write(input_audio_file)
+                        f.write(input_audio_file+"\n")
 
 if __name__ == '__main__':
     segment_laughter()

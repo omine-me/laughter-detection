@@ -1,3 +1,10 @@
+## Changes in fork version
+- Return probability
+- Save in json format
+- Split long audio automatically
+
+___
+
 # laughter-detection
 
 ### UPDATE(August 2021):
