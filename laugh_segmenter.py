@@ -45,16 +45,24 @@ def lowpass(sig, filter_order = 2, cutoff = 0.01):
     #Apply the filter
     return(signal.filtfilt(B,A, sig))
 
-def get_laughter_instances(probs, threshold = 0.5, min_length = 0.2, fps=100.):
+def get_laughter_instances(probs, thres_high, thres_low, min_laughter_len, min_speaking_len, fps):
     instances = []
     current_list = []
     instances_for_probs = []
     current_list_for_probs = []
+    state = None
     for i in range(len(probs)):
-        if np.min(probs[i:i+1]) > threshold:
+        min_prob = np.min(probs[i:i+1])
+        if state in ["laugh", None] and (min_prob > thres_high):
+            state = "laugh"
+            current_list.append(i)
+            current_list_for_probs.append(probs[i])
+        elif state in ["normal", None] and (min_prob < thres_low):
+            state = "normal"
             current_list.append(i)
             current_list_for_probs.append(probs[i])
         else:
+            state = None
             if len(current_list) > 0:
                 instances.append(current_list)
                 instances_for_probs.append(sum(current_list_for_probs) / len(current_list_for_probs)) # append average
@@ -65,7 +73,7 @@ def get_laughter_instances(probs, threshold = 0.5, min_length = 0.2, fps=100.):
         instances_for_probs.append(sum(current_list_for_probs) / len(current_list_for_probs))
     instances = [frame_span_to_time_span(collapse_to_start_and_end_frame(i),fps=fps) for i in instances]
     instances = [inst+(instances_for_probs[idx],) for idx, inst in enumerate(instances)]
-    instances = [inst for inst in instances if inst[1]-inst[0] > min_length]
+    instances = [inst for inst in instances if inst[1]-inst[0] > (min_laughter_len if inst[2]>thres_high else min_speaking_len)]
     return instances
 
 def get_feature_list(y,sr,window_size=37):

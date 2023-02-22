@@ -17,7 +17,16 @@ model = None
 feature_fn = None
 device = None
 
-def segment_laughter(input_audio_file="", output_dir="", threshold="0.5", min_length="0.2", save_to_audio_files="True", offset=0.0, duration=None, caution_log=None):
+def segment_laughter(input_audio_file="",
+                     output_dir="",
+                     threshold_high="0.5",
+                     threshold_low="0.15",
+                     min_length="0.2",
+                     min_speaking_length="5.0",
+                     save_to_audio_files="True",
+                     offset=0.0,
+                     duration=None,
+                     caution_log=None):
     global model, feature_fn, device
     sample_rate = 8000
 
@@ -25,7 +34,9 @@ def segment_laughter(input_audio_file="", output_dir="", threshold="0.5", min_le
 
     parser.add_argument('--model_path', type=str, default='./laughter_detection/checkpoints/in_use/resnet_with_augmentation')
     parser.add_argument('--config', type=str, default='resnet_with_augmentation')
-    parser.add_argument('--threshold', type=str, default=threshold)
+    parser.add_argument('--threshold_high', type=str, default=threshold_high)
+    parser.add_argument('--threshold_low', type=str, default=threshold_low)
+    parser.add_argument('--min_speaking_length', type=str, default=min_speaking_length)
     parser.add_argument('--min_length', type=str, default=min_length)
     parser.add_argument('--input_audio_file', type=str, default=input_audio_file)
     parser.add_argument('--output_dir', type=str, default=output_dir)
@@ -37,7 +48,8 @@ def segment_laughter(input_audio_file="", output_dir="", threshold="0.5", min_le
     model_path = args.model_path
     config = configs.CONFIG_MAP[args.config]
     audio_path = args.input_audio_file
-    threshold = float(args.threshold)
+    threshold_high = float(args.threshold_high)
+    threshold_low = float(args.threshold_low)
     min_length = float(args.min_length)
     save_to_audio_files = bool(strtobool(args.save_to_audio_files))
     save_to_textgrid = bool(strtobool(args.save_to_textgrid))
@@ -95,7 +107,12 @@ def segment_laughter(input_audio_file="", output_dir="", threshold="0.5", min_le
     print("fps",fps)
 
     probs = laugh_segmenter.lowpass(probs)
-    instances = laugh_segmenter.get_laughter_instances(probs, threshold=threshold, min_length=float(args.min_length), fps=fps)
+    instances = laugh_segmenter.get_laughter_instances(probs,
+                                                       thres_high=threshold_high,
+                                                       thres_low=threshold_low,
+                                                       min_laughter_len=float(args.min_length),
+                                                       min_speaking_len=float(args.min_speaking_length),
+                                                       fps=fps)
 
     print(); print("found %d laughs." % (len (instances)))
 
