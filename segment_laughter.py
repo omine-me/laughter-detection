@@ -134,7 +134,7 @@ def segment_laughter(input_audio_file="",
                 print(laugh_segmenter.format_outputs(instances, wav_paths))
         
         if save_to_textgrid:
-            out_path = output_dir+'_laughter.json'
+            out_path = output_dir+'.json'
 
             if os.path.exists(out_path):
                 with open(out_path, "r") as f:
