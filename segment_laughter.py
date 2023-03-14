@@ -13,6 +13,8 @@ from tqdm import tqdm
 from torch import optim, nn
 from functools import partial
 from distutils.util import strtobool
+# from accelerate import Accelerator
+
 model = None
 feature_fn = None
 device = None
@@ -26,8 +28,9 @@ def segment_laughter(input_audio_file="",
                      save_to_audio_files="True",
                      offset=0.0,
                      duration=None,
-                     caution_log=None):
-    global model, feature_fn, device
+                     caution_log=None,
+                     device=None):
+    global model, feature_fn#, device
     sample_rate = 8000
 
     parser = argparse.ArgumentParser()
@@ -55,8 +58,11 @@ def segment_laughter(input_audio_file="",
     save_to_textgrid = bool(strtobool(args.save_to_textgrid))
     output_dir = args.output_dir
 
+    # accelerator = Accelerator()
+    # device = accelerator.device
+
     if not model:
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         print(f"Using device {device}")
 
         ##### Load the Model
@@ -70,6 +76,8 @@ def segment_laughter(input_audio_file="",
             model.eval()
         else:
             raise Exception(f"Model checkpoint not found at {model_path}")
+        
+        # model = accelerator.prepare(model)
     
     ##### Load the audio file and features
         
@@ -80,8 +88,9 @@ def segment_laughter(input_audio_file="",
                             expand_channel_dim=config['expand_channel_dim'])
 
     inference_generator = torch.utils.data.DataLoader(
-        inference_dataset, num_workers=4, batch_size=8, shuffle=False, collate_fn=collate_fn)
-
+        inference_dataset, num_workers=8, batch_size=32, shuffle=False, collate_fn=collate_fn)
+    
+    # inference_generator = accelerator.prepare(inference_generator)
 
     ##### Make Predictions
 
@@ -104,7 +113,7 @@ def segment_laughter(input_audio_file="",
     #     file_length = file_length - offset
     # print("2",file_length)
     fps = len(probs)/float(file_length)
-    print("fps",fps)
+    # print("fps",fps)
 
     probs = laugh_segmenter.lowpass(probs)
     instances = laugh_segmenter.get_laughter_instances(probs,
@@ -114,7 +123,7 @@ def segment_laughter(input_audio_file="",
                                                        min_speaking_len=float(args.min_speaking_length),
                                                        fps=fps)
 
-    print(); print("found %d laughs." % (len (instances)))
+    print("found %d laughs." % (len (instances)))
 
     if len(instances) > 0:
         if save_to_audio_files:
@@ -140,7 +149,7 @@ def segment_laughter(input_audio_file="",
                 with open(out_path, "r") as f:
                     laughter_attributes = json.load(f)
                 start = len(laughter_attributes)
-                print(instances[0][0], offset, str(len(laughter_attributes)-1), laughter_attributes[str(len(laughter_attributes)-1)]["end_sec"])
+                # print(instances[0][0], offset, str(len(laughter_attributes)-1), laughter_attributes[str(len(laughter_attributes)-1)]["end_sec"])
                 assert instances[0][0]+offset >= laughter_attributes[str(len(laughter_attributes)-1)]["end_sec"], "Previous prediction seems to exist."
             else:
                 laughter_attributes = {}

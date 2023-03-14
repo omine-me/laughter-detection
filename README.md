@@ -1,5 +1,6 @@
 ## Changes in fork version
 - Return probability
+- Detect normal conversation (by setting lower threshold)
 - Save in json format
 - Split long audio automatically
 
