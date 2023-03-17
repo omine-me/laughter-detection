@@ -29,6 +29,8 @@ def segment_laughter(input_audio_file="",
                      offset=0.0,
                      duration=None,
                      caution_log=None,
+                     is_last=True,
+                     split_minutes=0,
                      device=None):
     global model, feature_fn#, device
     sample_rate = 8000
@@ -88,7 +90,7 @@ def segment_laughter(input_audio_file="",
                             expand_channel_dim=config['expand_channel_dim'])
 
     inference_generator = torch.utils.data.DataLoader(
-        inference_dataset, num_workers=8, batch_size=32, shuffle=False, collate_fn=collate_fn)
+        inference_dataset, num_workers=6, batch_size=20, shuffle=False, collate_fn=collate_fn)
     
     # inference_generator = accelerator.prepare(inference_generator)
 
@@ -167,10 +169,48 @@ def segment_laughter(input_audio_file="",
             # log caution when laughter location is too near start or near end
             # because it may be a separated laughter.
             if caution_log:
-                if instances[0][0] < min_length or\
+                if (instances[0][0] < min_length and offset!=0.) or\
                     instances[-1][1] > file_length-min_length:
                     with open(caution_log, mode='a') as f:
-                        f.write(input_audio_file+"\n")
+                        f.write(out_path+"\n")
+    
+    if is_last and save_to_textgrid:
+        if os.path.exists(out_path):
+            concat_splitted_segment(out_path, split_minutes, min_length, (threshold_high+threshold_low)/2.)
+
+def concat_splitted_segment(laughter_path, split_minutes, range_sec, laugh_normal_thre):
+    with open(laughter_path, "r") as f:
+        laughter = json.load(f)
+    
+    split_sec = split_minutes*60.
+    range_s = split_sec - range_sec
+    range_e = split_sec + range_sec
+    laugh_count = len(laughter)
+    for idx in range(laugh_count-1):
+        n_idx=str(idx+1)
+        idx=str(idx)
+        if not idx in laughter:
+            continue
+        if split_sec <= laughter[idx]["start_sec"]:
+            print(idx)
+            split_sec = ((laughter[idx]["start_sec"]//(split_minutes*60.))+1)*split_minutes*60.
+            range_s = split_sec - range_sec
+            range_e = split_sec + range_sec
+        if (range_s <= laughter[idx]["end_sec"] <= split_sec) and (split_sec <= laughter[n_idx]["start_sec"] <= range_e):
+            print(idx)
+            if (laughter[idx]["prob"] < laugh_normal_thre and laughter[n_idx]["prob"] < laugh_normal_thre) or \
+                (laughter[idx]["prob"] > laugh_normal_thre and laughter[n_idx]["prob"] > laugh_normal_thre):
+                print(" "+idx)
+                laughter[idx]["end_sec"] = laughter[n_idx]["end_sec"]
+                laughter[idx]["prob"] = (laughter[idx]["prob"] + laughter[n_idx]["prob"])/2.
+                del laughter[n_idx]
+    # return laughter
+    laughter_new = {}
+    for idx, inst in enumerate(laughter.values()):
+        laughter_new[idx] = {**inst}
+    # return laughter_new
+    with open(laughter_path, mode='w', encoding="utf-8") as f:
+        json.dump(laughter_new, f)
 
 if __name__ == '__main__':
     segment_laughter()
