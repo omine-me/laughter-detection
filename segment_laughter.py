@@ -127,6 +127,8 @@ def segment_laughter(input_audio_file="",
 
     print("found %d laughs." % (len (instances)))
 
+    out_path = output_dir+'.json'
+
     if len(instances) > 0:
         if save_to_audio_files:
             full_res_y, full_res_sr = librosa.load(audio_path,sr=44100)
@@ -145,8 +147,6 @@ def segment_laughter(input_audio_file="",
                 print(laugh_segmenter.format_outputs(instances, wav_paths))
         
         if save_to_textgrid:
-            out_path = output_dir+'.json'
-
             if os.path.exists(out_path):
                 with open(out_path, "r") as f:
                     laughter_attributes = json.load(f)
