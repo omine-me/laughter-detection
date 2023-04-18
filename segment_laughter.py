@@ -37,7 +37,7 @@ def segment_laughter(input_audio_file="",
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--model_path', type=str, default='./laughter_detection/checkpoints/in_use/resnet_with_augmentation')
+    parser.add_argument('--model_path', type=str, default='./laughter-detection/checkpoints/in_use/resnet_with_augmentation')
     parser.add_argument('--config', type=str, default='resnet_with_augmentation')
     parser.add_argument('--threshold_high', type=str, default=threshold_high)
     parser.add_argument('--threshold_low', type=str, default=threshold_low)

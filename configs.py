@@ -1,5 +1,5 @@
 import sys, numpy as np
-sys.path.append('./laughter_detection/utils')
+sys.path.append('./laughter-detection/utils')
 from . import models
 import audio_utils
 from functools import partial
