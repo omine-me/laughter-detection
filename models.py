@@ -219,7 +219,8 @@ class ResNetBigger(nn.Module):
         out = self.linear1(out)
         out = self.bn3(out)
         out = self.dropout(out)
-        out = F.relu(out)
+        # out = F.relu(out)
+        out = F.threshold(out, -np.inf, 0) # equal to Identity()
         out = self.linear2(out)
         out = torch.sigmoid(out)
         return out

@@ -12,6 +12,10 @@ import warnings
 import scipy.signal
 import pyloudnorm as pyln
 
+import librosa.display
+import matplotlib.pyplot as plt
+import sounddevice as sd
+
 warnings.filterwarnings('ignore', category=UserWarning)
 
 """
@@ -206,11 +210,13 @@ def featurize_melspec(f=None, offset=None, duration=None, y=None, sr=None,
     if f is not None and y is not None:
         raise Exception("You should only pass one of `f` and `y`")
 
-    if (y is not None) ^ bool(sr):
+    if ((y is not None) ^ bool(sr)) and f is None:
         raise Exception("Can't use only one of `y` and `sr`")
 
     if (offset is not None) ^ (duration is not None):
         raise Exception("Can't use only one of `offset` and `duration`")
+
+    assert y is None, "?"
 
     if y is None:
         try:
@@ -226,10 +232,14 @@ def featurize_melspec(f=None, offset=None, duration=None, y=None, sr=None,
     if augment_fn is not None:
         y = augment_fn(y)
     S = librosa.feature.melspectrogram(y=y, sr=sr, hop_length=hop_length).T
+    # sd.play(y, sr)
+    # plt.title('base')
+    # librosa.display.specshow(S)
+    # plt.show()
     S = librosa.amplitude_to_db(S, ref=np.max)
     if spec_augment_fn is not None:
         S = spec_augment_fn(S)
-    return S
+    return S, y
 
 #def load_audio_file_segments(f, sr, segments):
 #    """ Method to load multiple segments of audio from one file. For example,
@@ -321,7 +331,7 @@ def pad_sequences_with_labels(seq_label_tuples, sequence_pad_value=0,
     if (output_vocab is None and one_hot_labels) or (input_vocab is None and one_hot_labels):
         raise Exception("Need to provide vocab to convert labels to one_hot.")
 
-    sequences, labels = unpack_list_of_tuples(seq_label_tuples)
+    sequences, labels, _raw_audio = unpack_list_of_tuples(seq_label_tuples)
 
     sequences = keras_pad_seqs(sequences, maxlen=max_seq_len, dtype='float32',
         padding='pre', truncating='post', value=sequence_pad_value)
@@ -348,7 +358,7 @@ def pad_sequences_with_labels(seq_label_tuples, sequence_pad_value=0,
         sequences = np.expand_dims(sequences, 1)
         if auto_encoder_like:
             labels = np.expand_dims(labels, 1)
-    return sequences, labels
+    return sequences, labels, _raw_audio
 
 """
 # Data Augmentation Functions
@@ -442,10 +452,10 @@ def random_reverb(y, sr, impulse_responses):
     return conv_reverb(y, IR)
 
 def random_augment(y, sr, noise_signals, impulse_responses):
-    #functions = shuffle([random_speed, random_stretch, random_pitch,
-    functions = shuffle([random_speed, random_stretch, random_pitch,
-        partial(random_noise, noise_signals=noise_signals),
-        partial(random_reverb, impulse_responses=impulse_responses)])
+    functions = shuffle([random_speed, random_stretch, random_pitch,])
+    # functions = shuffle([random_speed, random_stretch, random_pitch,
+    #     partial(random_noise, noise_signals=noise_signals),
+    #     partial(random_reverb, impulse_responses=impulse_responses)])
     for fn in functions:
         y = fn(y, sr=sr)
     #fn = np.random.choice(functions)
@@ -502,10 +512,11 @@ def time_mask(spec, T=40, num_masks=1, replace_with_zero=False):
 
 def spec_augment(spec, prob=1.):
     # Adapted from https://github.com/zcaceres/spec_augment
-    if np.random.uniform(0, 1) < prob:
-        return freq_mask(time_mask(spec))
-    else:
-        return time_mask(freq_mask(spec))
+    return freq_mask(spec)
+    # if np.random.uniform(0, 1) < prob:
+    #     return freq_mask(time_mask(spec))
+    # else:
+    #     return time_mask(freq_mask(spec))
 
 """
 def time_warp(spec, W=5):

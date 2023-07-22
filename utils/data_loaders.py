@@ -3,6 +3,7 @@ from torch.utils import data
 import dataset_utils, audio_utils
 from joblib import Parallel, delayed
 import pandas as pd
+import audioread
 
 class AudioDataset(torch.utils.data.Dataset):
     """ A class to load audio files and, optionally, labels.
@@ -165,19 +166,28 @@ class SwitchBoardLaughterDataset(torch.utils.data.Dataset):
         return len(self.df)
 
     def __getitem__(self, index):
-        audio_file = self.audios_hash[self.df.audio_path[index]]
-        
+        # audio_file = self.audios_hash[self.df.audio_path[index]]
+        audio_file = self.df.audio_path[index]
         if self.subsample:
-            audio_file_length = librosa.core.samples_to_time(len(audio_file),sr=self.sr)
+            # librosa.get_duration() seems not to work when the length is too long.
+            with audioread.audio_open(audio_file) as f:
+                # audio_length_m = f.duration / 60.
+                audio_file_length = float(int(f.duration))
+            # audio_file_length = librosa.core.samples_to_time(len(audio_file),sr=self.sr)            
+        
             offset, duration = audio_utils.subsample_time(self.df.offset[index], self.df.duration[index], audio_file_length=audio_file_length,
-                subsample_length=1.0, padding_length=0.5)
+                subsample_length=1.0, padding_length=0.)
+            # print(self.df.offset[index], offset, self.df.duration[index], duration)
+            assert self.df.offset[index] <= offset <= self.df.offset[index]+self.df.duration[index], f"offset is out of range {self.df.offset[index], offset, self.df.offset[index]+self.df.duration[index]}"
+            assert self.df.offset[index] <= offset + duration <= self.df.offset[index]+self.df.duration[index], f"duration is out of range. {self.df.offset[index], offset + duration, self.df.offset[index]+self.df.duration[index]}"
         else:
             offset = self.df.subsampled_offset[index]
             duration = self.df.subsampled_duration[index]
 
-        X = self.feature_fn(y=audio_file, sr=self.sr, offset=offset, duration=duration)
+        # X = self.feature_fn(y=audio_file, sr=self.sr, offset=offset, duration=duration)
+        X, _raw_audio = self.feature_fn(f=audio_file, sr=self.sr, offset=offset, duration=duration)
         y = self.df.label[index]
-        return (X,y)
+        return (X,y, _raw_audio)
 
 class SwitchBoardLaughterInferenceDataset(torch.utils.data.Dataset):
     def __init__(self, audio_path, feature_fn, sr=8000, n_frames=44, offset=0.0, duration=None):

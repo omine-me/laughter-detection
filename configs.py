@@ -1,6 +1,6 @@
 import sys, numpy as np
 sys.path.append('./laughter-detection/utils')
-from . import models
+import models
 import audio_utils
 from functools import partial
 
@@ -65,4 +65,49 @@ CONFIG_MAP['resnet_with_augmentation'] = {
     'expand_channel_dim': True,
     'supervised_augment': True,
     'supervised_spec_augment': True
+}
+
+CONFIG_MAP['resnet_with_augmentation_finetune'] = {
+    'batch_size': 20,
+    'model': models.ResNetBigger,
+    'feature_fn': partial(audio_utils.featurize_melspec, hop_length=186),
+    'train_data_text_path': r"D:\datasets\multi\time_anotation\result\csv_ver\laughter.csv",
+    'val_data_text_path': r"D:\datasets\multi\time_anotation\result\csv_ver\test_laughter.csv",
+    'log_frequency': 20,
+    'swb_train_audio_pkl_path': './data/switchboard/train/swb_train_audios.pkl',
+    'swb_val_audio_pkl_path': './data/switchboard/val/swb_val_audios.pkl',
+    'swb_audio_root': '', # a_root
+    'swb_transcription_root': '',
+    'audioset_noisy_train_audio_pkl_path': '',
+    'augment_fn': partial(audio_utils.random_augment, sr=8000),
+    'linear_layer_size': 128,
+    'filter_sizes': [128,64,32,32],
+    'expand_channel_dim': True,
+    'supervised_augment': True,
+    'supervised_spec_augment': True
+}
+
+CONFIG_MAP['resnet_with_augmentation_finetune_test'] = {
+    'batch_size': 20,
+    'model': models.ResNetBigger,
+    'feature_fn': partial(audio_utils.featurize_melspec, hop_length=186),
+    # 'train_data_text_path': r"D:\datasets\multi\time_anotation\result\csv_ver\mini_laughter.csv",
+    'train_data_text_path': r"D:\datasets\multi\time_anotation\result\csv_ver\laughter.csv",
+    # 'val_data_text_path': r"D:\datasets\multi\time_anotation\result\csv_ver\mini_test_laughter.csv",
+    'val_data_text_path': r"D:\datasets\multi\time_anotation\result\csv_ver\test_laughter.csv",
+    'log_frequency': 1,
+    'swb_train_audio_pkl_path': './data/switchboard/train/swb_train_audios.pkl',
+    'swb_val_audio_pkl_path': './data/switchboard/val/swb_val_audios.pkl',
+    'swb_audio_root': '', # a_root
+    'swb_transcription_root': '',
+    'audioset_noisy_train_audio_pkl_path': '',
+    'augment_fn': partial(audio_utils.random_augment, sr=8000),
+    # 'augment_fn': None,#partial(audio_utils.random_augment, sr=8000),
+    'linear_layer_size': 128,
+    'filter_sizes': [128,64,32,32],
+    'expand_channel_dim': True,
+    'supervised_augment': True,
+    # 'supervised_augment': False,
+    'supervised_spec_augment': True,
+    # 'supervised_spec_augment': False
 }

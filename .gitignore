@@ -19,6 +19,7 @@ checkpoints/comparisons/resnet_without_augmentation_trained_on_audioset/events.o
 checkpoints/comparisons/resnet_without_augmentation_trained_on_audioset/last.pth.tar
 checkpoints/in_use/resnet_with_augmentation/events.out.tfevents.1586238947.sequoia
 checkpoints/in_use/resnet_with_augmentation/last.pth.tar
+checkpoints/finetune/
 
 data/audioset/annotations/clean_laughter_annotations_backup.csv
 data/audioset/annotations/clean_laughter_annotations_jg.csv
