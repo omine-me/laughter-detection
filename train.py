@@ -178,10 +178,17 @@ def main():
 
             with torch.no_grad():
                 seqs, labs, _raw_audio = batch
+
+                phase_seqs = []
+                for audio in _raw_audio:
+                    phase_seqs.append(np.angle(librosa.stft(audio, n_fft=255, hop_length=186).T)) # stft magnitude
+                phase_src = torch.from_numpy(np.array(phase_seqs)).float()
+                phase_src = torch.unsqueeze(phase_src, dim=1).to(device)
                 
                 src = torch.from_numpy(np.array(seqs)).float().to(device)
                 trg = torch.from_numpy(np.array(labs)).float().to(device)
-                output = model(src).squeeze()
+                # output = model(src).squeeze()
+                output = model(src, phase_src).squeeze()
                 
                 criterion = nn.BCELoss()
                 bce_loss = criterion(output, trg)
@@ -208,25 +215,25 @@ def main():
 
             seqs, labs, _raw_audio = batch
 
-            import librosa.display
-            import matplotlib.pyplot as plt
-            # from scipy.signal import istft
-            sr = 8000
-            for idx, audio in enumerate(_raw_audio):
-                one_spec = np.array(seqs[idx,0,:,:]) # 1つの音声のメルスペクトログラム→ampToDbされたもの
-                # one_spec = librosa.db_to_amplitude(one_spec, ref=1) # dbToAmp
-                # one_spec = librosa.feature.inverse.mel_to_stft(one_spec, sr) # mel To Stft magnitude
-                one_spec = np.angle(librosa.stft(audio, hop_length=186)) # stft magnitude
-                librosa.display.specshow(one_spec)
-                plt.title('Label:'+labs[idx].astype(str))
-                plt.show()
+            # import librosa.display
+            # import matplotlib.pyplot as plt
+            # # from scipy.signal import istft
+            # sr = 8000
+            # for idx, audio in enumerate(_raw_audio):
+            #     one_spec = np.array(seqs[idx,0,:,:]) # 1つの音声のメルスペクトログラム→ampToDbされたもの
+            #     # one_spec = librosa.db_to_amplitude(one_spec, ref=1) # dbToAmp
+            #     # one_spec = librosa.feature.inverse.mel_to_stft(one_spec, sr) # mel To Stft magnitude
+            #     one_spec = np.angle(librosa.stft(audio, hop_length=186)) # stft magnitude
+            #     librosa.display.specshow(one_spec)
+            #     plt.title('Label:'+labs[idx].astype(str))
+            #     plt.show()
 
-                _beep_duration = 0.05; _beep_frequency = 750
-                beep = (np.sin(2 * np.pi * np.arange(2000 * _beep_duration) * _beep_frequency / 2000)).astype(np.float32)
-                sd.play(beep, 2000)
-                time.sleep(.05)
-                sd.play(audio, 8000)
-                time.sleep(1)
+            #     _beep_duration = 0.05; _beep_frequency = 750
+            #     beep = (np.sin(2 * np.pi * np.arange(2000 * _beep_duration) * _beep_frequency / 2000)).astype(np.float32)
+            #     sd.play(beep, 2000)
+            #     time.sleep(.05)
+            #     sd.play(audio, 8000)
+            #     time.sleep(1)
             
 
             # F = one_spec
@@ -246,12 +253,19 @@ def main():
             # sd.play(f_messy, sr)
             # sd.play(_raw_audio[0,:], sr)
 
+            phase_seqs = []
+            for audio in _raw_audio:
+                phase_seqs.append(np.angle(librosa.stft(audio, n_fft=255, hop_length=186).T)) # stft magnitude
+            phase_src = torch.from_numpy(np.array(phase_seqs)).float()
+            phase_src = torch.unsqueeze(phase_src, dim=1).to(device)
+
             src = torch.from_numpy(np.array(seqs)).float().to(device)
             trg = torch.from_numpy(np.array(labs)).float().to(device)
 
             #optimizer.zero_grad()
 
-            output = model(src).squeeze()
+            # output = model(src).squeeze()
+            output = model(src, phase_src).squeeze()
             
             criterion = nn.BCELoss()
             
@@ -351,13 +365,18 @@ def main():
     device = torch.device(torch_device if torch.cuda.is_available() else 'cpu')
     print("Using device", device)
     model = config['model'](dropout_rate=dropout_rate, linear_layer_size=config['linear_layer_size'], filter_sizes=config['filter_sizes'])
+    _phase_model = config['model'](dropout_rate=dropout_rate, linear_layer_size=config['linear_layer_size'], filter_sizes=config['filter_sizes'])
     model.set_device(device)
+    _phase_model.set_device(device)
     torch_utils.count_parameters(model)
-    model.apply(torch_utils.init_weights)
+    torch_utils.count_parameters(_phase_model)
+    # model.apply(torch_utils.init_weights)
+    _phase_model.apply(torch_utils.init_weights)
     optimizer = optim.Adam(model.parameters())
 
     if os.path.exists(checkpoint_dir):
         torch_utils.load_checkpoint(checkpoint_dir+'/last.pth.tar', model, optimizer)
+        torch_utils.load_checkpoint(checkpoint_dir+'/last.pth.tar', _phase_model, optimizer)
     else:
         print("Saving checkpoints to ", checkpoint_dir)
         print("Beginning training...")
@@ -365,6 +384,13 @@ def main():
     writer = SummaryWriter(checkpoint_dir, comment='TensorBoard')
 
     # assert False
+    global_step = model.global_step
+    # model = torch.nn.Sequential(*(list(model.children())[:-4]))
+    # _phase_model = torch.nn.Sequential(*(list(_phase_model.children())[:-4]))
+    from models import DoubleResNetBigger
+    # integrate models
+    model = DoubleResNetBigger(first_model=model, second_model=_phase_model,global_step=global_step)
+    model.set_device(device)
 
     # if augment_fn is not None:
     #     print("Loading background noise files...")

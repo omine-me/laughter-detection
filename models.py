@@ -214,20 +214,59 @@ class ResNetBigger(nn.Module):
         out = self.block4(out)
         out = nn.AvgPool2d(4)(out)
         out = out.view(out.size(0), -1)
-        out = self.bn2(out)
         out = self.dropout(out)
         out = self.linear1(out)
-        out = self.bn3(out)
-        out = self.dropout(out)
-        # out = F.relu(out)
-        out = F.threshold(out, -np.inf, 0) # equal to Identity()
-        out = self.linear2(out)
-        out = torch.sigmoid(out)
+        # out = self.bn3(out)
+        # out = self.dropout(out)
+        # # out = F.relu(out)
+        # out = F.threshold(out, -np.inf, 0) # equal to Identity()
+        # out = self.linear2(out)
+        # out = torch.sigmoid(out)
         return out
     
     def set_device(self, device):
         for b in [self.block1, self.block2, self.block3, self.block4]:
             b.to(device)
+        self.to(device)
+
+class DoubleResNetBigger(nn.Module):
+    def __init__(self, num_classes=1,dropout_rate=0.15,linear_layer_size=64,first_model=None, second_model=None,global_step=0):
+        super(DoubleResNetBigger, self).__init__()
+
+        assert first_model is not None and second_model is not None, "first_model and second_model must be not None"
+
+        self.first_model = first_model
+        self.second_model = second_model
+        
+        self.linear_layer_size=linear_layer_size
+        
+        self.linear1 = nn.Linear(linear_layer_size, 32)
+        self.linear2 = nn.Linear(32, num_classes)
+
+        self.bn3 = nn.BatchNorm1d(32)
+        self.dropout = nn.Dropout(dropout_rate)
+        
+        self.global_step = global_step
+        self.epoch = 0
+        self.best_val_loss = np.inf
+
+    def forward(self, first_x, second_x):
+    # Output of one layer becomes input to the next
+        head1 = self.first_model(first_x)
+        head2 = self.second_model(second_x)
+        out = torch.cat((head1, head2), dim=1)
+        out = out.view(out.size(0), -1)
+        out = self.dropout(out)
+        out = self.linear1(out)
+        out = self.bn3(out)
+        out = self.dropout(out)
+        # out = F.relu(out)
+        # out = F.threshold(out, -np.inf, 0) # equal to Identity()
+        out = self.linear2(out)
+        out = torch.sigmoid(out)
+        return out
+    
+    def set_device(self, device):
         self.to(device)
 
 class ResNetNoBN(nn.Module):
