@@ -167,7 +167,8 @@ def main():
                 val_loss, val_acc = _eval_batch(model, device, val_batch)
                 val_losses.append(val_loss)
                 val_accs.append(val_acc)
-                
+            
+            print("end of eval")
             model.train()
             return val_itr, np.mean(val_losses), np.mean(val_accs)
 
@@ -186,9 +187,11 @@ def main():
                 criterion = nn.BCELoss()
                 bce_loss = criterion(output, trg)
                 preds = torch.round(output)
+                # preds = (output >= .8).float()
                 # for idx, audio in enumerate(_raw_audio):
                 #     if preds[idx].item() != trg[idx].item():
-                #         print(f"pred: {preds[idx].item()}, GT: {trg[idx].item()}")
+                #         # print(f"pred: {output[idx].item()}, GT: {trg[idx].item()}")
+                #         print(f"pred: {round(float(f'{output[idx].item():.3g}'), 3)}, GT: {trg[idx].item()}")
                 #         _beep_duration = 0.05; _beep_frequency = 750
                 #         beep = (np.sin(2 * np.pi * np.arange(2000 * _beep_duration) * _beep_frequency / 2000)).astype(np.float32)
                 #         sd.play(beep, 2000)
@@ -208,25 +211,25 @@ def main():
 
             seqs, labs, _raw_audio = batch
 
-            import librosa.display
-            import matplotlib.pyplot as plt
-            # from scipy.signal import istft
-            sr = 8000
-            for idx, audio in enumerate(_raw_audio):
-                one_spec = np.array(seqs[idx,0,:,:]) # 1つの音声のメルスペクトログラム→ampToDbされたもの
-                # one_spec = librosa.db_to_amplitude(one_spec, ref=1) # dbToAmp
-                # one_spec = librosa.feature.inverse.mel_to_stft(one_spec, sr) # mel To Stft magnitude
-                one_spec = np.angle(librosa.stft(audio, hop_length=186)) # stft magnitude
-                librosa.display.specshow(one_spec)
-                plt.title('Label:'+labs[idx].astype(str))
-                plt.show()
+            # import librosa.display
+            # import matplotlib.pyplot as plt
+            # # from scipy.signal import istft
+            # sr = 8000
+            # for idx, audio in enumerate(_raw_audio):
+            #     one_spec = np.array(seqs[idx,0,:,:]) # 1つの音声のメルスペクトログラム→ampToDbされたもの
+            #     # one_spec = librosa.db_to_amplitude(one_spec, ref=1) # dbToAmp
+            #     # one_spec = librosa.feature.inverse.mel_to_stft(one_spec, sr) # mel To Stft magnitude
+            #     one_spec = np.angle(librosa.stft(audio, hop_length=186)) # stft magnitude
+            #     librosa.display.specshow(one_spec)
+            #     plt.title('Label:'+labs[idx].astype(str))
+            #     plt.show()
 
-                _beep_duration = 0.05; _beep_frequency = 750
-                beep = (np.sin(2 * np.pi * np.arange(2000 * _beep_duration) * _beep_frequency / 2000)).astype(np.float32)
-                sd.play(beep, 2000)
-                time.sleep(.05)
-                sd.play(audio, 8000)
-                time.sleep(1)
+            #     _beep_duration = 0.05; _beep_frequency = 750
+            #     beep = (np.sin(2 * np.pi * np.arange(2000 * _beep_duration) * _beep_frequency / 2000)).astype(np.float32)
+            #     sd.play(beep, 2000)
+            #     time.sleep(.05)
+            #     sd.play(audio, 8000)
+            #     time.sleep(1)
             
 
             # F = one_spec
@@ -353,7 +356,7 @@ def main():
     model = config['model'](dropout_rate=dropout_rate, linear_layer_size=config['linear_layer_size'], filter_sizes=config['filter_sizes'])
     model.set_device(device)
     torch_utils.count_parameters(model)
-    model.apply(torch_utils.init_weights)
+    # model.apply(torch_utils.init_weights)
     optimizer = optim.Adam(model.parameters())
 
     if os.path.exists(checkpoint_dir):

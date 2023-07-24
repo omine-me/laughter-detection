@@ -236,7 +236,7 @@ def featurize_melspec(f=None, offset=None, duration=None, y=None, sr=None,
     # plt.title('base')
     # librosa.display.specshow(S)
     # plt.show()
-    S = librosa.amplitude_to_db(S, ref=np.max)
+    # S = librosa.amplitude_to_db(S, ref=np.max)
     if spec_augment_fn is not None:
         S = spec_augment_fn(S)
     return S, y
