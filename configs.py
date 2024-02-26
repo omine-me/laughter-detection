@@ -65,3 +65,21 @@ CONFIG_MAP['resnet_with_augmentation'] = {
     'supervised_augment': True,
     'supervised_spec_augment': True
 }
+CONFIG_MAP['resnet_with_augmentation_omine'] = {
+    'batch_size': 32,
+    'model': models.ResNetBigger,
+    'feature_fn': partial(audio_utils.featurize_melspec, hop_length=186),
+    'val_data_text_path': './data/switchboard/val/switchboard_val_data.txt',
+    'log_frequency': 1000,
+    'swb_train_audio_pkl_path': './data/switchboard/train/swb_train_audios.pkl',
+    'swb_val_audio_pkl_path': './data/switchboard/val/swb_val_audios.pkl',
+    'swb_audio_root': './data/switchboard/switchboard-1/97S62/',
+    'swb_transcription_root': './data/switchboard/switchboard-1/swb_ms98_transcriptions/',
+    'audioset_noisy_train_audio_pkl_path': './data/audioset/train/audioset_train_audios.pkl',
+    'augment_fn': None,
+    'linear_layer_size': 128,
+    'filter_sizes': [128,64,32,32],
+    'expand_channel_dim': True,
+    'supervised_augment': False,
+    'supervised_spec_augment': False
+}

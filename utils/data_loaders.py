@@ -145,7 +145,7 @@ class OneFileDataset(torch.utils.data.Dataset):
         return self.feature_and_label_fn(self.data[index], **self.kwargs)
 
 class SwitchBoardLaughterDataset(torch.utils.data.Dataset):
-    def __init__(self, df, audios_hash, feature_fn, sr, batch_size, subsample=True):
+    def __init__(self, df, audios_hash, feature_fn, sr, batch_size, subsample=True, split=""):
         # For training, we should set subsample to True, for val/testing, set to false
         # When subsample is False, we use the data in 'subsampled_offset/duration' every time
         # When it's True, we re-subsample to get more variation in time
@@ -161,22 +161,71 @@ class SwitchBoardLaughterDataset(torch.utils.data.Dataset):
         self.feature_fn = feature_fn
         self.sr = sr
 
+        
+        import sys
+        sys.path.append(r"..\all_at_once")
+        self.split = split
+        self.input_sec = 4
+        seed = 42
+        audio_preprocessor_name = "jonatasgrosman/wav2vec2-large-xlsr-53-english"
+        debug = False
+        from Data import CustomDataCollator
+        self.data_collator = CustomDataCollator(self.input_sec, audio_preprocessor_name, seed, batch_size, debug)
+
     def __len__(self):
         return len(self.df)
 
     def __getitem__(self, index):
-        audio_file = self.audios_hash[self.df.audio_path[index]]
-        
-        if self.subsample:
-            audio_file_length = librosa.core.samples_to_time(len(audio_file),sr=self.sr)
-            offset, duration = audio_utils.subsample_time(self.df.offset[index], self.df.duration[index], audio_file_length=audio_file_length,
-                subsample_length=1.0, padding_length=0.5)
-        else:
-            offset = self.df.subsampled_offset[index]
-            duration = self.df.subsampled_duration[index]
+        # audio_file = self.audios_hash[self.df.audio_path[index]]
 
-        X = self.feature_fn(y=audio_file, sr=self.sr, offset=offset, duration=duration)
-        y = self.df.label[index]
+        import random
+        should_y = index%2#random.choices([0,1],weights=[6,4])[0]
+        # if random.random() < 0.05:
+        #     should_y = 0
+
+        audio_file = self.data_collator([{"split": self.split, "laugh_count": 3 if should_y else 0}])
+        
+        # if self.subsample:
+        #     audio_file_length = librosa.core.samples_to_time(len(audio_file),sr=self.sr)
+        #     offset, duration = audio_utils.subsample_time(self.df.offset[index], self.df.duration[index], audio_file_length=audio_file_length,
+        #         subsample_length=1.0, padding_length=0.5)
+        # else:
+        #     offset = self.df.subsampled_offset[index]
+        #     duration = self.df.subsampled_duration[index]
+
+        # X = self.feature_fn(y=audio_file, sr=self.sr, offset=offset, duration=duration)
+        # y = self.df.label[index]
+        array = audio_file["input_values"][0].to('cpu').detach().numpy()
+        # center of the audio
+        # center_frame = int(array.shape[0]/2)
+        y = audio_file["labels"][0]
+
+        
+        # randomly pick up idx of label which is shoud_y
+        indices = (y[self.sr:len(y)-self.sr]==should_y).nonzero(as_tuple=True)[0]
+        if len(indices) == 0:
+            # print("No label found for", should_y)
+            should_y = 1 - should_y            
+            indices = (y[self.sr:len(y)-self.sr]==should_y).nonzero(as_tuple=True)[0]
+        center_frame = random.choice(indices)+self.sr
+
+        # assert should_y == y[center_frame].item()
+        # assert self.sr <= center_frame <= len(y)-self.sr
+
+        # print(center_frame/len(y)*20)
+        # print(y[np.linspace(0, y.shape[0]-1, 20, dtype=int)])
+
+        y = y[center_frame]
+
+        array = array[center_frame-self.sr:center_frame+self.sr]
+        array = librosa.resample(array,orig_sr=16000,target_sr=self.sr)
+
+        # import sounddevice as sd
+        # print(y.item(), "\n")
+        # sd.play(array, self.sr, blocking=True)
+
+        X = self.feature_fn(y=array, sr=self.sr)
+        
         return (X,y)
 
 class SwitchBoardLaughterInferenceDataset(torch.utils.data.Dataset):
