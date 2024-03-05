@@ -147,7 +147,7 @@ if __name__ == '__main__':
         def _eval_for_logging(model, device, val_itr, val_iterator, val_batches_per_log):
             model.eval()
             val_losses = []; val_accs = []
-
+            print("_eval_for_logging")
             for j in range(val_batches_per_log):
                 try:
                     val_batch = next(val_itr)
@@ -225,7 +225,7 @@ if __name__ == '__main__':
         if mode.lower() == 'train' and validate_online:
             # val_batches_per_epoch =  torch_utils.num_batches_per_epoch(val_iterator)
             # val_batches_per_log = int(np.round(val_batches_per_epoch))
-            val_batches_per_log = 100
+            val_batches_per_log = 50#100
 
             val_itr = iter(val_iterator)
 
@@ -258,13 +258,14 @@ if __name__ == '__main__':
                         
                 batch_losses.append(batch_loss); batch_accs.append(batch_acc)
 
+                # if True:
                 if log_frequency is not None and (model.global_step + 1) % log_frequency == 0:
-                    # val_itr, val_loss_at_step, val_acc_at_step = _eval_for_logging(model, device,
-                    #     val_itr, val_iterator, val_batches_per_log)
+                    val_itr, val_loss_at_step, val_acc_at_step = _eval_for_logging(model, device,
+                        val_itr, val_iterator, val_batches_per_log)
 
-                    # is_best = (val_loss_at_step < model.best_val_loss)
-                    # if is_best:
-                    #     model.best_val_loss = val_loss_at_step
+                    is_best = (val_loss_at_step < model.best_val_loss)
+                    if is_best:
+                        model.best_val_loss = val_loss_at_step
 
                     train_loss_at_step = np.mean(batch_losses)
                     train_acc_at_step = np.mean(batch_accs)
@@ -273,20 +274,20 @@ if __name__ == '__main__':
                         print("\nLogging at step: ", model.global_step)
                         print("Train loss: ", train_loss_at_step)
                         print("Train accuracy: ", train_acc_at_step)
-                        # print("Val loss: ", val_loss_at_step)
-                        # print("Val accuracy: ", val_acc_at_step)
+                        print("Val loss: ", val_loss_at_step)
+                        print("Val accuracy: ", val_acc_at_step)
     
                     writer.add_scalar('loss/train', train_loss_at_step, model.global_step)
                     writer.add_scalar('acc/train', train_acc_at_step, model.global_step)
-                    # writer.add_scalar('loss/eval', val_loss_at_step, model.global_step)
-                    # writer.add_scalar('acc/eval', val_acc_at_step, model.global_step)
+                    writer.add_scalar('loss/eval', val_loss_at_step, model.global_step)
+                    writer.add_scalar('acc/eval', val_acc_at_step, model.global_step)
                     batch_losses = []; batch_accs = [] # reset
 
                 if checkpoint_frequency is not None and (model.global_step + 1) % checkpoint_frequency == 0:
                     state = torch_utils.make_state_dict(model, optimizer, model.epoch,
                                         model.global_step, model.best_val_loss)
-                    # torch_utils.save_checkpoint(state, is_best=is_best, checkpoint=checkpoint_dir)
-                    torch_utils.save_checkpoint(state, is_best=True, checkpoint=checkpoint_dir)
+                    torch_utils.save_checkpoint(state, is_best=is_best, checkpoint=checkpoint_dir)
+                    # torch_utils.save_checkpoint(state, is_best=True, checkpoint=checkpoint_dir)
 
                 epoch_loss += batch_loss
                 model.global_step += 1
@@ -441,7 +442,7 @@ if __name__ == '__main__':
         split="validation")
 
     val_generator = torch.utils.data.DataLoader(
-    val_dataset, num_workers=0, batch_size=batch_size, shuffle=True,
+    val_dataset, num_workers=8, batch_size=batch_size, shuffle=True,
     collate_fn=collate_fn)
 
     if train_on_noisy_audioset:
